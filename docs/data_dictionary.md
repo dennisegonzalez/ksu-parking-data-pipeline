@@ -55,6 +55,83 @@ Each citation's fine was compared against the official KSU Parking Services fee 
 
 ---
 
+## Reports: `data/reports/`
+
+All reports exclude credit adjustment records (`is_credit_adjustment = 0`) unless noted. Revenue figures only count positive fine amounts.
+
+---
+
+### `violations_by_type.csv`
+One row per violation type across the full dataset.
+
+| Column | Description |
+|--------|-------------|
+| violation_type | The violation category (e.g., No Valid Permit) |
+| citation_count | Total number of citations issued for this violation type |
+| total_fines_collected | Sum of all positive fine amounts for this violation type (dollars) |
+| avg_fine | Average fine amount among citations that had a positive fine (dollars) |
+
+---
+
+### `monthly_volume_by_campus.csv`
+One row per semester + year + month + campus combination.
+
+| Column | Description |
+|--------|-------------|
+| semester | Academic semester label (e.g., Fall 2025) |
+| year | Calendar year |
+| month | Month number (1–12) |
+| campus | Kennesaw or Marietta |
+| citation_count | Number of citations issued that month on that campus |
+| monthly_revenue | Sum of positive fine amounts issued that month on that campus (dollars) |
+
+---
+
+### `top_locations.csv`
+Top 20 parking locations by citation volume, across both campuses.
+
+| Column | Description |
+|--------|-------------|
+| campus | Kennesaw or Marietta |
+| location | Parking lot or structure name (e.g., East Deck, Lot B) |
+| citation_count | Total citations issued at this location |
+| total_fines | Sum of positive fine amounts issued at this location (dollars) |
+
+---
+
+### `status_breakdown.csv`
+One row per semester + status combination, showing how citations were resolved.
+
+| Column | Description |
+|--------|-------------|
+| semester | Academic semester label |
+| status | Citation disposition (Unpaid, Transfer, Zero Balance, Inactive, Appeal Balance Due) |
+| citation_count | Number of citations with this status in this semester |
+| pct_of_semester | Percentage of all citations in that semester with this status (e.g., 32.5 means 32.5%) |
+
+**Status definitions:**
+
+| Status | Meaning |
+|--------|---------|
+| Unpaid | Fine has been issued and not yet paid |
+| Transfer | Citation transferred to another party (fine amount becomes $0) |
+| Zero Balance | Balance cleared — paid, appealed, or waived |
+| Inactive | Citation is no longer active |
+| Appeal Balance Due | Appeal was filed; a reduced balance remains |
+
+---
+
+### `hourly_patterns.csv`
+Citation volume broken down by hour of day and campus, useful for identifying peak enforcement periods.
+
+| Column | Description |
+|--------|-------------|
+| hour | Hour of day the citation was issued (0–23, 24-hour clock) |
+| campus | Kennesaw or Marietta |
+| citation_count | Number of citations issued during this hour on this campus |
+
+---
+
 ## Official Fee Schedule
 
 Source: KSU Parking Services Violation Descriptions and Costs
