@@ -1,1 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
 .venv/
+venv/
+
+# Data files — do NOT commit raw/processed data, except for the sample output
+data/raw/
+data/processed/
+data/source/
+data/reports/
+data/sample/*.db
+*.parquet
+
+# Database (large binary — not version-controlled)
+*.db
+
+# Environment
+.env
+
+# macOS
+.DS_Store
+
+# IDE
+.vscode/
+.idea/

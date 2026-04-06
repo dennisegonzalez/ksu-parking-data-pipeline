@@ -1,0 +1,19 @@
+violation_type,citation_count,total_fines_collected,avg_fine
+No Valid Permit,22910,488300,50.0
+Not In Assigned Area,7947,18000,50.0
+Failed To Pay At Visitor Lot,2537,32830,35.0
+Backed In/Pulled Through Space,1130,4760,35.0
+Area Not Designed For Parking,826,5900,50.0
+Boot Fee,210,2460,60.0
+Expired Permit,149,1610,35.0
+Parked In Dedicated Space,88,500,50.0
+Not Parked Between Lines,57,280,35.0
+Parking For Clinic Patients Only,39,150,50.0
+Fire Lane - Blocking/Impeding,27,180,60.0
+Abandoned Vehicle,6,0,
+Parked In Loading Zone,6,35,35.0
+Parked In Visitor Space,4,0,
+Expired Hourly Parking,3,105,35.0
+No License Plate Displayed,1,35,35.0
+Tow Fee,1,0,
+Unauthorized Use of Permit,1,0,
