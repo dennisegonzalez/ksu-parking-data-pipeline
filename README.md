@@ -12,10 +12,6 @@
     <br />
     <a href="docs/data_dictionary.md"><strong>Explore the docs »</strong></a>
     <br />
-    <br />
-    <a href="https://github.com/your_username/repo_name/issues/new?labels=bug&template=bug-report---.md">Report Bug</a>
-    ·
-    <a href="https://github.com/your_username/repo_name/issues/new?labels=enhancement&template=feature-request---.md">Request Feature</a>
   </p>
 </div>
 
@@ -188,9 +184,6 @@ _For field definitions, transformation decisions, and data quality notes, see [`
 - [x] Stage 2: Transformation (clean, validate, enrich)
 - [x] Stage 3: Storage (Parquet → SQLite)
 - [x] Stage 4: Analytical queries (SQL → CSV reports)
-- [ ] Automated semester detection from source data
-
-See the [open issues](https://github.com/your_username/repo_name/issues) for a full list of proposed features (and known issues).
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
@@ -225,9 +218,7 @@ Distributed under the MIT License. See `LICENSE.txt` for more information.
 <!-- CONTACT -->
 ## Contact
 
-Your Name - [@your_twitter](https://twitter.com/your_username) - email@example.com
-
-Project Link: [https://github.com/your_username/repo_name](https://github.com/your_username/repo_name)
+Project Link: [https://github.com/dennisegonzalez/ksu-parking-data-pipeline](https://github.com/dennisegonzalez/ksu-parking-data-pipeline)
 
 <p align="right">(<a href="#readme-top">back to top</a>)</p>
 
