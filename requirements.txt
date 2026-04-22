@@ -1,4 +1,14 @@
-pandas>=2.0.0
-openpyxl>=3.1.0
-pyarrow>=14.0.0
-sqlalchemy>=2.0.0
+# KSU Parking Citations Pipeline — Python dependencies
+# Install with: pip install -r requirements.txt
+# Requires Python 3.9+ and Java 17+ (for PySpark)
+
+# Data ingestion and transformation
+pandas==3.0.2
+openpyxl==3.1.5        # Excel file reading (.xlsx)
+requests==2.33.1       # Open-Meteo weather API HTTP calls
+
+# Columnar storage
+pyarrow==23.0.1        # Parquet read/write engine
+
+# Distributed processing
+pyspark==4.1.1         # Stage 5 — requires Java 17+ on PATH

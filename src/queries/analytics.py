@@ -1,8 +1,17 @@
 """
-queries/analytics.py
+src/queries/analytics.py
 
-Stage 4 (final): run analytical SQL queries against the citations database
-and export results as CSV files for downstream use.
+Stage 4 of the pipeline: run analytical SQL queries against the citations
+database and export results as CSV files for downstream use.
+
+Queries:
+  1. violations_by_type              — citation count and revenue by violation (unchanged)
+  2. monthly_volume_by_campus        — monthly trends per campus (unchanged)
+  3. top_locations                   — top 20 locations by volume (unchanged)
+  4. status_breakdown                — outcome distribution by semester (unchanged)
+  5. hourly_patterns                 — citations by hour of day (unchanged)
+  6. weather_citation_correlation    — citation volume and revenue by weather
+                                       condition (new for M4)
 
 Stack layers addressed:
   - Querying: Declarative SQL queries against a structured schema
@@ -14,13 +23,11 @@ import sqlite3
 import pandas as pd
 from pathlib import Path
 
-from config.settings import DB_PATH, REPORTS_DIR
-
 logger = logging.getLogger(__name__)
+
 
 # ---------------------------------------------------------------------------
 # Query definitions
-# Each is a dict with a name, SQL, and description for logging/reporting.
 # ---------------------------------------------------------------------------
 
 QUERIES = [
@@ -30,9 +37,9 @@ QUERIES = [
         "sql": """
             SELECT
                 violation_type,
-                COUNT(*)                                        AS citation_count,
-                SUM(CASE WHEN fine_amount > 0 THEN fine_amount ELSE 0 END) AS total_fines_collected,
-                ROUND(AVG(CASE WHEN fine_amount > 0 THEN fine_amount END), 2) AS avg_fine
+                COUNT(*)                                                        AS citation_count,
+                SUM(CASE WHEN fine_amount > 0 THEN fine_amount ELSE 0 END)     AS total_fines_collected,
+                ROUND(AVG(CASE WHEN fine_amount > 0 THEN fine_amount END), 2)  AS avg_fine
             FROM citations
             WHERE is_credit_adjustment = 0
             GROUP BY violation_type
@@ -63,7 +70,7 @@ QUERIES = [
             SELECT
                 campus,
                 location,
-                COUNT(*)  AS citation_count,
+                COUNT(*)                                                    AS citation_count,
                 SUM(CASE WHEN fine_amount > 0 THEN fine_amount ELSE 0 END) AS total_fines
             FROM citations
             WHERE is_credit_adjustment = 0
@@ -79,8 +86,11 @@ QUERIES = [
             SELECT
                 semester,
                 status,
-                COUNT(*)  AS citation_count,
-                ROUND(100.0 * COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY semester), 2) AS pct_of_semester
+                COUNT(*) AS citation_count,
+                ROUND(
+                    100.0 * COUNT(*) / SUM(COUNT(*)) OVER (PARTITION BY semester),
+                    2
+                ) AS pct_of_semester
             FROM citations
             GROUP BY semester, status
             ORDER BY semester, citation_count DESC
@@ -100,8 +110,33 @@ QUERIES = [
             ORDER BY hour, campus
         """,
     },
+    {
+        "name": "weather_citation_correlation",
+        "description": "Citation volume and revenue by precipitation bucket and condition label",
+        "sql": """
+            SELECT
+                w.precip_bucket,
+                w.condition_label,
+                w.campus,
+                COUNT(c.citation_id)                                            AS citation_count,
+                SUM(CASE WHEN c.fine_amount > 0 THEN c.fine_amount ELSE 0 END) AS total_fines,
+                ROUND(AVG(w.temperature_2m_max), 1)                             AS avg_high_temp_f,
+                ROUND(AVG(w.precipitation_sum), 2)                              AS avg_precipitation_mm
+            FROM daily_weather w
+            LEFT JOIN citations c
+                ON  c.date   = w.date
+                AND c.campus = w.campus
+                AND c.is_credit_adjustment = 0
+            GROUP BY w.precip_bucket, w.condition_label, w.campus
+            ORDER BY citation_count DESC
+        """,
+    },
 ]
 
+
+# ---------------------------------------------------------------------------
+# Main entry point
+# ---------------------------------------------------------------------------
 
 def run_queries(db_path: Path, reports_dir: Path) -> None:
     """

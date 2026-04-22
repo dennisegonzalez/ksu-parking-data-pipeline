@@ -1,10 +1,14 @@
 """
-processing/transform.py
+src/processing/transform.py
 
-Stage 2 of the pipeline: clean, validate, and enrich the raw DataFrame.
+Stage 2 of the pipeline: clean, validate, and enrich both DataFrames.
 
-Transformation decisions documented inline — each is explained in the M3 report
-under 'Transformation Decisions'.
+Sources transformed:
+  1. Citations  — clean, validate fines, add derived temporal columns
+  2. Weather    — parse dates, add condition labels, add precipitation buckets
+
+Transformation decisions documented inline — each is explained in the
+final report under 'Transformation Decisions'.
 
 Stack layers addressed:
   - Data Model: Schema enforced, DataFrames used throughout
@@ -21,12 +25,13 @@ from config.settings import (
     ZERO_FINE_STATUSES,
     SEMESTERS,
 )
+from src.processing.weather_transform import run_weather_transformation
 
 logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
-# 1. Filter invalid records
+# Citations transformations  (unchanged from M3)
 # ---------------------------------------------------------------------------
 
 def remove_test_records(df: pd.DataFrame) -> pd.DataFrame:
@@ -44,10 +49,6 @@ def remove_test_records(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# 2. Handle negative fine amounts
-# ---------------------------------------------------------------------------
-
 def flag_negative_fines(df: pd.DataFrame) -> pd.DataFrame:
     """
     Negative fine amounts (-$50, -$60) represent credit adjustments or
@@ -64,10 +65,6 @@ def flag_negative_fines(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# 3. Validate fine amounts against official fee schedule
-# ---------------------------------------------------------------------------
-
 def validate_fines(df: pd.DataFrame) -> pd.DataFrame:
     """
     Cross-reference each citation's fine against the official KSU fee schedule.
@@ -83,7 +80,6 @@ def validate_fines(df: pd.DataFrame) -> pd.DataFrame:
     expected = df["Violation Type"].map(EXPECTED_FINES)
     zero_status = df["Status"].isin(ZERO_FINE_STATUSES)
 
-    # Fine is valid if: zero-status record, OR amount matches expected, OR it's a credit
     fine_matches = df["Fine Amount"] == expected
     df["fine_validated"] = zero_status | fine_matches | df["is_credit_adjustment"]
 
@@ -95,10 +91,6 @@ def validate_fines(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# 4. Standardise string columns
-# ---------------------------------------------------------------------------
-
 def standardise_strings(df: pd.DataFrame) -> pd.DataFrame:
     """
     Trim whitespace and normalise casing for string columns.
@@ -109,10 +101,6 @@ def standardise_strings(df: pd.DataFrame) -> pd.DataFrame:
     logger.info("String columns standardised (whitespace trimmed)")
     return df
 
-
-# ---------------------------------------------------------------------------
-# 5. Add derived columns
-# ---------------------------------------------------------------------------
 
 def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -127,7 +115,6 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     df["day_of_week"] = df["Timestamp"].dt.day_name()
     df["hour"]        = df["Timestamp"].dt.hour
 
-    # Assign semester label based on date ranges in settings
     df["semester"] = "Unknown"
     for label, start, end in SEMESTERS:
         mask = (df["Timestamp"] >= start) & (df["Timestamp"] <= end)
@@ -137,15 +124,10 @@ def add_derived_columns(df: pd.DataFrame) -> pd.DataFrame:
     return df
 
 
-# ---------------------------------------------------------------------------
-# 6. Rename and select final columns
-# ---------------------------------------------------------------------------
-
 def finalise_schema(df: pd.DataFrame) -> pd.DataFrame:
     """
     Rename columns to snake_case and select only the columns that belong
-    in the final processed dataset. This enforces the schema documented
-    in docs/data_dictionary.md.
+    in the final processed dataset. Enforces the schema in docs/data_dictionary.md.
     """
     df = df.rename(columns={
         "Violation Type": "violation_type",
@@ -175,45 +157,63 @@ def finalise_schema(df: pd.DataFrame) -> pd.DataFrame:
     ]
 
     df = df[final_columns]
-    logger.info(f"Schema finalised: {len(final_columns)} columns, {len(df):,} records")
+    logger.info(f"Citations schema finalised: {len(final_columns)} columns, {len(df):,} records")
     return df
 
-
-# ---------------------------------------------------------------------------
-# 7. Save processed Parquet
-# ---------------------------------------------------------------------------
 
 def save_processed_parquet(df: pd.DataFrame, output_path: Path) -> None:
     """
-    Write the clean DataFrame to a second Parquet file.
+    Write the clean citations DataFrame to processed Parquet.
 
     Having both raw and processed Parquet files gives you:
       - Full audit trail (raw is never modified)
-      - A checkpoint: if transformation logic changes, you re-read raw Parquet
+      - A checkpoint: if transformation logic changes, re-read raw Parquet
         rather than re-ingesting from Excel
-      - Two examples of Parquet usage to discuss in the report
     """
     output_path.parent.mkdir(parents=True, exist_ok=True)
     df.to_parquet(output_path, index=False, engine="pyarrow", compression="snappy")
-    logger.info(f"Processed Parquet written → {output_path}  ({output_path.stat().st_size / 1024:.1f} KB)")
+    logger.info(
+        f"Processed citations Parquet written → {output_path}  "
+        f"({output_path.stat().st_size / 1024:.1f} KB)"
+    )
 
 
 # ---------------------------------------------------------------------------
-# Main entry point
+# Combined transformation entry point
 # ---------------------------------------------------------------------------
 
-def run_transformation(df: pd.DataFrame, output_path: Path) -> pd.DataFrame:
+def run_transformation(
+    df_citations: pd.DataFrame,
+    df_weather: pd.DataFrame,
+    output_path: Path,
+) -> tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Run all transformation steps in order. Called by main.py.
-    Returns the cleaned, enriched DataFrame.
+    Run all transformation steps for both sources.
+    Called by main.py.
+
+    Parameters
+    ----------
+    df_citations : raw citations DataFrame from ingest.py
+    df_weather   : raw weather DataFrame from weather.py
+    output_path  : path for the processed citations Parquet file
+
+    Returns
+    -------
+    df_clean   : cleaned citations DataFrame
+    df_weather : cleaned weather DataFrame
     """
-    logger.info("--- Transformation stage starting ---")
-    df = remove_test_records(df)
-    df = standardise_strings(df)
-    df = flag_negative_fines(df)
-    df = validate_fines(df)
-    df = add_derived_columns(df)
-    df = finalise_schema(df)
-    save_processed_parquet(df, output_path)
-    logger.info(f"--- Transformation complete: {len(df):,} clean records ---")
-    return df
+    # --- Citations ---
+    logger.info("--- Citations transformation starting ---")
+    df_citations = remove_test_records(df_citations)
+    df_citations = standardise_strings(df_citations)
+    df_citations = flag_negative_fines(df_citations)
+    df_citations = validate_fines(df_citations)
+    df_citations = add_derived_columns(df_citations)
+    df_citations = finalise_schema(df_citations)
+    save_processed_parquet(df_citations, output_path)
+    logger.info(f"--- Citations transformation complete: {len(df_citations):,} records ---")
+
+    # --- Weather ---
+    df_weather = run_weather_transformation(df_weather)
+
+    return df_citations, df_weather
